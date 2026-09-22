@@ -42,16 +42,18 @@ def split_sentences(text: str) -> list[str]:
 
 
 def stats(text: str) -> Stats:
-    paragraphs = split_paragraphs(text)
-    sentences = split_sentences(text)
+    # Structured fact lines are metadata, not prose characters for the chapter gate.
+    body = _style_text(text)
+    paragraphs = split_paragraphs(body)
+    sentences = split_sentences(body)
     sentence_lengths = [len(re.sub(r"\s+", "", sentence)) for sentence in sentences]
     mean = statistics.fmean(sentence_lengths) if sentence_lengths else 0.0
     deviation = statistics.pstdev(sentence_lengths) if len(sentence_lengths) > 1 else 0.0
-    dialogue = sum(len(match.group(1)) for match in re.finditer(r"[“\"]([^”\"]+)[”\"]", text))
+    dialogue = sum(len(match.group(1)) for match in re.finditer(r"[“\"]([^”\"]+)[”\"]", body))
     return Stats(
-        effective_chars=len(re.sub(r"\s+", "", text)),
-        chinese_chars=len(re.findall(r"[\u3400-\u9fff]", text)),
-        non_whitespace_chars=len(re.sub(r"\s", "", text)),
+        effective_chars=len(re.sub(r"\s+", "", body)),
+        chinese_chars=len(re.findall(r"[\u3400-\u9fff]", body)),
+        non_whitespace_chars=len(re.sub(r"\s", "", body)),
         paragraphs=len(paragraphs),
         sentences=len(sentences),
         dialogue_chars=dialogue,
@@ -151,9 +153,12 @@ def continuity_issues(candidates: Iterable[Fact], formal: Iterable[Fact], text: 
         latest = values[-1]
         if latest.mode == "update":
             continue
-        if latest.kind in {"location", "death", "identity", "power", "injury", "item", "secret"}:
+        if latest.kind in {"location", "death", "identity", "power", "injury", "item", "secret", "world_rule"}:
             evidence = [f"{item.source.chapter}:{item.source.line} {item.value}" for item in values[-3:]]
             issues.append(Issue("fact_conflict", "error", f"状态键 {key} 出现无法同时成立的值：{' / '.join(sorted(unique))}", "continuity", evidence=evidence, blocking=True))
+        elif latest.kind == "relationship":
+            evidence = [f"{item.source.chapter}:{item.source.line} {item.value}" for item in values[-3:]]
+            issues.append(Issue("relationship_transition", "warning", f"关系状态 {key} 出现变化，请用 update 明确这是演变而非冲突", "continuity", evidence=evidence))
     explicit = re.search(r"【(连续性冲突|认知穿帮|违反规则|时间线冲突)】\s*(.+)", text)
     if explicit:
         issues.append(Issue("explicit_continuity", "error", explicit.group(2).strip(), "continuity", blocking=True))
@@ -259,6 +264,7 @@ def era_issues(text: str, profile: dict) -> list[Issue]:
 
 
 def reader_feedback(text: str) -> dict:
+    text = _style_text(text)
     paragraphs = split_paragraphs(text)
     if not paragraphs:
         return {"first_skip": "", "first_confusion": "", "first_hook": "", "mechanical": "", "delete_candidates": [], "continue_desire": False}

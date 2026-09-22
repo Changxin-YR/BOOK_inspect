@@ -49,6 +49,26 @@ def _keywords(text: str) -> list[str]:
     return [word for word, count in Counter(words).most_common(60) if count >= 1]
 
 
+def _compact_state(state: dict[str, Any], keywords: set[str]) -> dict[str, Any]:
+    """Keep Context Pack bounded even when the formal snapshot spans thousands of chapters."""
+    def relevant(mapping: dict[str, Any], cap: int = 20) -> dict[str, Any]:
+        rows = [(key, value) for key, value in mapping.items() if not keywords or any(term in str(key) + str(value) for term in keywords)]
+        return dict(rows[-cap:])
+    def relevant_rows(rows: list[Any], cap: int = 20) -> list[Any]:
+        selected = [row for row in rows if not keywords or any(term in str(row) for term in keywords)]
+        return selected[-cap:]
+    return {
+        "current_chapter": state.get("current_chapter", 0),
+        "story_time": state.get("story_time", ""),
+        "characters": relevant(dict(state.get("characters", {}))),
+        "items": relevant(dict(state.get("items", {}))),
+        "relationships": relevant_rows(list(state.get("relationships", []))),
+        "threads": relevant_rows(list(state.get("threads", []))),
+        "foreshadows": relevant_rows(list(state.get("foreshadows", []))),
+        "known_secrets": relevant_rows(list(state.get("known_secrets", []))),
+    }
+
+
 def build_context(store: ProjectStore, chapter: str, text: str = "", task: str = "检查或续写当前章节", limit: int | None = None) -> ContextPack:
     store.init()
     config = store.load_config()
@@ -90,12 +110,12 @@ def build_context(store: ProjectStore, chapter: str, text: str = "", task: str =
     scored.sort(key=lambda item: (-item.score, item.fact_id))
     index = store.load_chapter_index()
     recent = [entry.get("path", "") for entry in index[-int(config.get("recent_chapters", 3)):]]
-    risks = [
-        f"{fact.state_key}：{fact.value}"
-        for fact in facts
-        if fact.status == "conflict" or fact.state_key.startswith(("location:", "secret:", "death:")) and fact.protected
-    ][:12]
-    return ContextPack(task=task, chapter=chapter, items=scored[:limit], recent_chapters=recent, risks=risks, style=store.load_style())
+    grouped: dict[str, set[str]] = {}
+    for fact in facts:
+        if fact.status == "active":
+            grouped.setdefault(fact.state_key, set()).add(fact.value)
+    risks = [f"{key}：{' / '.join(sorted(values))}" for key, values in grouped.items() if len(values) > 1][:12]
+    return ContextPack(task=task, chapter=chapter, items=scored[:limit], recent_chapters=recent, risks=risks, style=store.load_style(), state=_compact_state(store.load_state(), keywords))
 
 
 def _load_sidecar_facts(store: ProjectStore, chapter_path: Path, chapter: str) -> list[Fact]:
@@ -186,7 +206,7 @@ def run_check(store: ProjectStore, chapter_path: str | Path, chapter: str | None
     chapter = chapter or path.stem
     config = store.load_config()
     minimum = int(minimum if minimum is not None else config.get("min_effective_chars", 4000))
-    input_hash = sha256_text(canonical_json({"chapter": chapter, "text": text, "style": store.load_style(), "config": config}))
+    input_hash = sha256_text(canonical_json({"chapter": chapter, "text": text, "style": store.load_style(), "config": config, "minimum": minimum, "task": task}))
     formal_hash = store.formal_snapshot_hash()
     run_id = run_id or f"{safe_id(chapter)}-{input_hash[:12]}"
     old = store.load_run(run_id)
@@ -201,11 +221,13 @@ def run_check(store: ProjectStore, chapter_path: str | Path, chapter: str | None
         run["formal_hash"] = formal_hash
         run["completed"] = []
         run["results"] = {}
+        run["formal_memory_committed"] = False
     elif run.get("formal_hash") != formal_hash:
         run["formal_hash"] = formal_hash
         run["completed"] = [stage for stage in run["completed"] if stage in {"stats", "facts", "style", "reader"}]
         for stage in ("context", "continuity", "gate"):
             run["results"].pop(stage, None)
+        run["formal_memory_committed"] = False
     formal = store.load_facts()
     history_text: list[str] = []
     for entry in store.load_chapter_index()[-20:]:
@@ -262,6 +284,7 @@ def run_check(store: ProjectStore, chapter_path: str | Path, chapter: str | None
         state = _state_after(store, chapter, committed, run_id)
         store.save_state(state)
         run["formal_memory_committed"] = True
+        run["formal_hash"] = store.formal_snapshot_hash()
         run["results"]["committed_fact_ids"] = [fact.fact_id for fact in committed]
         run["updated_at"] = now_iso()
         entries = [entry for entry in store.load_chapter_index() if entry.get("chapter") != chapter]

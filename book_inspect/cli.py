@@ -62,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
         first = run_check(store, "novel/chapters/chapter_001.md", "chapter_001", minimum=200)
         second = run_check(store, "novel/chapters/chapter_002.md", "chapter_002", minimum=200)
         print(_json({"root": str(root), "chapter_001": first, "chapter_002": second}))
-        return 0 if second["status"] != "阻止发布" else 1
+        return 0
     if args.command == "check":
         store = ProjectStore(args.root)
         try:

@@ -72,6 +72,7 @@ class ContextPack:
     recent_chapters: list[str] = field(default_factory=list)
     risks: list[str] = field(default_factory=list)
     style: dict[str, Any] = field(default_factory=dict)
+    state: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

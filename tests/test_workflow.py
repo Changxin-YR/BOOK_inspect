@@ -35,8 +35,9 @@ class WorkflowTests(unittest.TestCase):
 
 林舟推开城门，门后亮着一盏灯。“你来了？”沈遥问。"""
         path = chapter(self.root, "chapter_001", text)
-        report = run_check(self.store, path, "chapter_001", minimum=70)
+        report = run_check(self.store, path, "chapter_001", minimum=30)
         self.assertIn(report["status"], {"通过", "带警告通过"})
+        self.assertLess(report["stats"]["effective_chars"], len(text.replace("\n", "")))
         facts = self.store.load_facts()
         self.assertEqual({fact.value for fact in facts}, {"黑石城", "右臂骨裂"})
         self.assertTrue(all(fact.source.chapter == "chapter_001" for fact in facts))
@@ -73,6 +74,8 @@ class WorkflowTests(unittest.TestCase):
         path.write_text(path.read_text(encoding="utf-8") + "新增变化。", encoding="utf-8")
         changed = run_check(self.store, path, "chapter_001", minimum=50, run_id=run_id)
         self.assertNotEqual(changed["run_id"], run_id)
+        different_gate = run_check(self.store, path, "chapter_001", minimum=500, task="检查字数")
+        self.assertNotEqual(different_gate["run_id"], changed["run_id"])
 
     def test_context_is_relevant_and_bounded_after_100_chapters(self):
         facts = []
@@ -94,6 +97,33 @@ class WorkflowTests(unittest.TestCase):
         old = next(fact for fact in facts if fact.fact_id == first.fact_id)
         self.assertEqual(old.status, "historical")
         self.assertEqual(old.history[0]["replaced_by"], changed.fact_id)
+
+    def test_repeating_same_active_fact_keeps_one_record_and_context_state(self):
+        first = _make_fact("chapter_001", "novel/chapters/chapter_001.md", 1, "location", "林舟", "location", "黑石城", 5, "assert", "来源")
+        second = _make_fact("chapter_002", "novel/chapters/chapter_002.md", 1, "location", "林舟", "location", "黑石城", 5, "assert", "来源")
+        self.store.commit_facts([first, second])
+        facts = self.store.load_facts()
+        self.assertEqual(len(facts), 1)
+        self.assertEqual(len(facts[0].history), 1)
+        context = build_context(self.store, "chapter_003", "林舟抵达黑石城")
+        self.assertEqual(context.risks, [])
+        self.assertEqual(context.state["current_chapter"], 0)
+
+    def test_relationship_change_without_update_is_flagged(self):
+        first = _make_fact("chapter_001", "novel/chapters/chapter_001.md", 1, "relationship", "沈遥", "relationship", "不信任林舟", 4, "assert", "来源")
+        self.store.commit_facts([first])
+        path = chapter(self.root, "chapter_002", "【事实】沈遥|relationship|信任林舟|4\n" + "沈遥点头。" * 30)
+        report = run_check(self.store, path, "chapter_002", minimum=50)
+        self.assertEqual(report["status"], "带警告通过")
+        self.assertTrue(any(issue["code"] == "relationship_transition" for issue in report["issues"]))
+
+    def test_formal_snapshot_change_invalidates_old_run_before_commit(self):
+        path = chapter(self.root, "chapter_001", "【事实】林舟|location|黑石城|5\n" + "林舟推门。" * 30)
+        first = run_check(self.store, path, "chapter_001", minimum=50)
+        self.store.commit_facts([_make_fact("chapter_000", "novel/chapters/chapter_000.md", 1, "world_rule", "城门", "规则", "夜间关闭", 5, "assert", "来源")])
+        second = run_check(self.store, path, "chapter_001", minimum=50, run_id=first["run_id"])
+        self.assertTrue(second["formal_memory_committed"])
+        self.assertIn("world_rule:城门:规则", {fact.state_key for fact in self.store.load_facts()})
 
     def test_reader_and_ai_symptom_evidence_has_locations(self):
         text = "\n\n".join(["与此同时，他沉默片刻。" * 3 for _ in range(10)]) + "\n\n但他不知道的是，门外有敌人。"

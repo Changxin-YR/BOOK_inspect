@@ -134,6 +134,11 @@ class ProjectStore:
                 committed.append(previous)
                 continue
             same_key = [item for item in current if item.state_key == candidate.state_key and item.status == "active"]
+            same_value = next((item for item in same_key if item.value == candidate.value), None)
+            if same_value:
+                same_value.history.append({"seen_at": now_iso(), "source": to_dict(candidate.source)})
+                committed.append(same_value)
+                continue
             if same_key and candidate.mode == "update":
                 for old in same_key:
                     old.status = "historical"
