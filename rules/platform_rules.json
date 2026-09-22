@@ -1,0 +1,17 @@
+{
+  "purpose": "公开入口登记与可维护检查项，不声明未经官方证实的AI阈值或封禁传言。",
+  "last_verified": "2026-09-22",
+  "sources": [
+    {
+      "platform": "起点中文网",
+      "official_urls": ["https://www.qidian.com/", "https://acts.qidian.com/"],
+      "checks": ["遵守作品内容与版权规则", "保留原创和授权依据", "发布前人工复核平台最新公告"]
+    },
+    {
+      "platform": "番茄小说",
+      "official_urls": ["https://fanqienovel.com/", "https://fanqienovel.com/page/contract"],
+      "checks": ["遵守作品内容与版权规则", "保留原创和授权依据", "发布前人工复核平台最新公告"]
+    }
+  ],
+  "policy": "平台规则可能变化；本文件只提供核验入口和本地质量检查配置，不能替代平台审核。"
+}

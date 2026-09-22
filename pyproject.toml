@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "book-inspect"
+version = "0.1.0"
+description = "Recoverable Chinese web-novel memory and quality gate workflow"
+requires-python = ">=3.11"
+
+[project.scripts]
+book-inspect = "book_inspect.cli:main"

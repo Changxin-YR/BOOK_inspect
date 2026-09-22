@@ -1,0 +1,12 @@
+{
+  "tone": [
+    "有画面感",
+    "人物差异明显"
+  ],
+  "pace": "每章产生可验证变化",
+  "narrator_distance": "随视角人物变化",
+  "dialogue_density": "按场景需要",
+  "emotion": "优先通过行为和选择呈现",
+  "modern_slang": "仅在世界观和角色身份允许时使用",
+  "reader_profile": "目标题材核心读者：快速判断冲突、角色记忆点和下一章欲望"
+}

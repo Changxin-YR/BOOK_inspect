@@ -1,0 +1,60 @@
+{
+  "current_chapter": 1,
+  "story_time": "",
+  "characters": {
+    "林舟": {
+      "location": "黑石城",
+      "source": {
+        "chapter": "chapter_001",
+        "path": "novel\\chapters\\chapter_001.md",
+        "line": 6,
+        "quote": "林舟在雨里抵达黑石城，右臂的疼痛让他握不住刀。沈遥没有替他开门，只把一盏灯放在门槛上。"
+      },
+      "injury": "右臂骨裂",
+      "位于": "黑石城"
+    }
+  },
+  "relationships": [
+    {
+      "subject": "沈遥",
+      "value": "不信任林舟",
+      "source": {
+        "chapter": "chapter_001",
+        "path": "novel\\chapters\\chapter_001.md",
+        "line": 3,
+        "quote": "【事实】沈遥|relationship|不信任林舟|4"
+      },
+      "fact_id": "4fb535054eb6693b601e"
+    }
+  ],
+  "items": {},
+  "threads": [
+    {
+      "name": "旧铜铃",
+      "status": "open",
+      "source": {
+        "chapter": "chapter_001",
+        "path": "novel\\chapters\\chapter_001.md",
+        "line": 4,
+        "quote": "【伏笔】旧铜铃：铃声会在无月夜响起"
+      }
+    }
+  ],
+  "foreshadows": [
+    {
+      "subject": "旧铜铃",
+      "value": "铃声会在无月夜响起",
+      "status": "active",
+      "source": {
+        "chapter": "chapter_001",
+        "path": "novel\\chapters\\chapter_001.md",
+        "line": 4,
+        "quote": "【伏笔】旧铜铃：铃声会在无月夜响起"
+      },
+      "fact_id": "ca0b94a6fb7872118e4a"
+    }
+  ],
+  "known_secrets": [],
+  "last_formal_run": "chapter_001-5759dfc9f7ee",
+  "state_hash": "aecc42578be83a60ab99aad63d88c3bb6f45481c290e20f995d226ddee3ac554"
+}
